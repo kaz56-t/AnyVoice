@@ -123,7 +123,7 @@ export default function HomeScreen() {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <ThemedView style={styles.header}>
           <ThemedText type="title" style={styles.title}>
-            音声入力アプリ
+            AnyVoice
           </ThemedText>
           {!apiKey && (
             <ThemedText type="default" style={styles.warning}>

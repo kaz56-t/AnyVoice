@@ -1,12 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, TextInput, TouchableOpacity, Alert, ScrollView, Platform } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { storage } from '@/utils/storage';
 import { Picker } from '@react-native-picker/picker';
+
 import { windowManager } from '@/services/window-manager';
+import React, { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+
 
 const LANGUAGES = [
   { label: '日本語', value: 'ja' },
@@ -138,12 +143,26 @@ export default function SettingsScreen() {
             <Picker
               selectedValue={language}
               onValueChange={setLanguage}
+              mode="dropdown"
+              dropdownIconColor={colorScheme === 'dark' ? '#fff' : '#000'}
               style={[
                 styles.picker,
-                { color: colorScheme === 'dark' ? '#fff' : '#000' },
-              ]}>
+                {
+                  color: colorScheme === 'dark' ? '#fff' : '#000',
+                  backgroundColor: colorScheme === 'dark' ? '#333' : '#fff',
+                },
+              ]}
+              itemStyle={{
+                color: colorScheme === 'dark' ? '#fff' : '#000',
+                backgroundColor: colorScheme === 'dark' ? '#333' : '#fff',
+              }}>
               {LANGUAGES.map((lang) => (
-                <Picker.Item key={lang.value} label={lang.label} value={lang.value} />
+                <Picker.Item
+                  key={lang.value}
+                  label={lang.label}
+                  value={lang.value}
+                  color={colorScheme === 'dark' ? '#fff' : '#000'}
+                />
               ))}
             </Picker>
           </View>
