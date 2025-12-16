@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { WindowManagerModule, isWindowManagerAvailable } from '@/native-modules';
 
 /**
  * ウィンドウ管理サービス
@@ -61,10 +62,7 @@ export class WindowManager {
    */
   private async setAlwaysOnTopWindows(enabled: boolean): Promise<void> {
     try {
-      const { NativeModules } = require('react-native');
-      const { WindowManagerModule } = NativeModules;
-      
-      if (WindowManagerModule && WindowManagerModule.setAlwaysOnTop) {
+      if (isWindowManagerAvailable() && WindowManagerModule) {
         // ネイティブモジュールが利用可能な場合
         await WindowManagerModule.setAlwaysOnTop(enabled);
         console.log(`Windows: 前面表示を${enabled ? '有効' : '無効'}にしました`);
@@ -91,10 +89,7 @@ export class WindowManager {
    */
   private async setAlwaysOnTopMacOS(enabled: boolean): Promise<void> {
     try {
-      const { NativeModules } = require('react-native');
-      const { WindowManagerModule } = NativeModules;
-      
-      if (WindowManagerModule && WindowManagerModule.setAlwaysOnTop) {
+      if (isWindowManagerAvailable() && WindowManagerModule) {
         // ネイティブモジュールが利用可能な場合
         await WindowManagerModule.setAlwaysOnTop(enabled);
         console.log(`macOS: 前面表示を${enabled ? '有効' : '無効'}にしました`);
@@ -136,10 +131,7 @@ export class WindowManager {
 
   private async bringToFrontWindows(): Promise<void> {
     try {
-      const { NativeModules } = require('react-native');
-      const { WindowManagerModule } = NativeModules;
-      
-      if (WindowManagerModule && WindowManagerModule.bringToFront) {
+      if (isWindowManagerAvailable() && WindowManagerModule) {
         await WindowManagerModule.bringToFront();
       } else {
         console.log('Windows: ウィンドウを前面に表示しました（モック）');
@@ -151,10 +143,7 @@ export class WindowManager {
 
   private async bringToFrontMacOS(): Promise<void> {
     try {
-      const { NativeModules } = require('react-native');
-      const { WindowManagerModule } = NativeModules;
-      
-      if (WindowManagerModule && WindowManagerModule.bringToFront) {
+      if (isWindowManagerAvailable() && WindowManagerModule) {
         await WindowManagerModule.bringToFront();
       } else {
         console.log('macOS: ウィンドウを前面に表示しました（モック）');
