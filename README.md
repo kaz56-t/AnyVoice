@@ -1,27 +1,49 @@
-# Welcome to your Expo app 👋
+# AnyVoice - 音声入力アプリ
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+WindowsとMacで動作する高速な音声入力・文章修正アプリです。
 
-## Get started
+## 🚀 クイックスタート
 
-1. Install dependencies
+### 基本的なセットアップ
+
+1. 依存関係のインストール
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. アプリの起動
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+### Windows/Macでビルドしてテストする
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+**Windows/Macでネイティブアプリとしてビルドする場合は、以下のドキュメントを参照してください：**
+
+- **[📖 クイックスタートガイド](./docs/QUICK_START.md)** - 最短で始める手順
+- **[🔧 ビルドとテスト手順ガイド](./docs/BUILD_AND_TEST.md)** - 詳細な手順とトラブルシューティング
+
+### 主要な機能
+
+- 🎤 音声入力と文字起こし（Whisper API）
+- ✏️ 文章の自動修正（GPT API）
+- 📋 クリップボードへの自動コピー
+- 🪟 前面表示機能（Windows/Mac）
+- ⌨️ グローバルショートカット（実装予定）
+
+## 📚 ドキュメント
+
+- **[クイックスタート](./docs/QUICK_START.md)** - 5分で始める
+- **[ビルドとテスト手順](./docs/BUILD_AND_TEST.md)** - 完全なビルド手順
+- **[ネイティブモジュールセットアップ](./docs/native-modules-setup.md)** - ネイティブモジュールの統合方法
+- **[実装仕様書](./docs/specs.md)** - アプリの仕様と機能要件
+- **[テストガイド](./docs/TESTING.md)** - テスト方法
+
+## 🛠️ 開発
+
+このプロジェクトは [Expo](https://expo.dev) を使用しています。
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
