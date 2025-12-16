@@ -116,12 +116,26 @@ export default function SettingsScreen() {
             <Picker
               selectedValue={language}
               onValueChange={setLanguage}
+              mode="dropdown"
+              dropdownIconColor={colorScheme === 'dark' ? '#fff' : '#000'}
               style={[
                 styles.picker,
-                { color: colorScheme === 'dark' ? '#fff' : '#000' },
-              ]}>
+                {
+                  color: colorScheme === 'dark' ? '#fff' : '#000',
+                  backgroundColor: colorScheme === 'dark' ? '#333' : '#fff',
+                },
+              ]}
+              itemStyle={{
+                color: colorScheme === 'dark' ? '#fff' : '#000',
+                backgroundColor: colorScheme === 'dark' ? '#333' : '#fff',
+              }}>
               {LANGUAGES.map((lang) => (
-                <Picker.Item key={lang.value} label={lang.label} value={lang.value} />
+                <Picker.Item
+                  key={lang.value}
+                  label={lang.label}
+                  value={lang.value}
+                  color={colorScheme === 'dark' ? '#fff' : '#000'}
+                />
               ))}
             </Picker>
           </View>
