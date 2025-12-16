@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { StyleSheet, View, TextInput, TouchableOpacity, Alert, ScrollView, Platform } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import { storage } from '@/utils/storage';
 import { Picker } from '@react-native-picker/picker';
+import { windowManager } from '@/services/window-manager';
 
 const LANGUAGES = [
   { label: '日本語', value: 'ja' },
@@ -41,6 +42,23 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleAlwaysOnTopToggle = async () => {
+    const newValue = !alwaysOnTop;
+    setAlwaysOnTop(newValue);
+    
+    // ウィンドウ管理サービスを使用して前面表示を設定
+    try {
+      await windowManager.setAlwaysOnTop(newValue);
+      // 設定を即座に保存
+      await storage.setAlwaysOnTop(newValue);
+    } catch (error) {
+      // エラーが発生した場合は元に戻す
+      setAlwaysOnTop(!newValue);
+      Alert.alert('エラー', '前面表示の設定に失敗しました');
+      console.error('Always on top error:', error);
+    }
+  };
+
   const handleSave = async () => {
     if (!apiKey.trim()) {
       Alert.alert('エラー', 'APIキーを入力してください');
@@ -53,6 +71,10 @@ export default function SettingsScreen() {
       await storage.setLanguage(language);
       await storage.setAlwaysOnTop(alwaysOnTop);
       await storage.setShortcutKey(shortcutKey);
+      
+      // 前面表示設定を適用
+      await windowManager.setAlwaysOnTop(alwaysOnTop);
+      
       Alert.alert('保存完了', '設定を保存しました');
     } catch (error) {
       Alert.alert('エラー', '設定の保存に失敗しました');
@@ -132,16 +154,20 @@ export default function SettingsScreen() {
             前面への表示
           </ThemedText>
           <ThemedText type="default" style={styles.description}>
-            他のアプリを起動中でも常に前面に表示する（実装予定）
+            {windowManager.isDesktopPlatform()
+              ? '他のアプリを起動中でも常に前面に表示します（Windows/Macのみ）'
+              : 'この機能はWindows/Macでのみ利用可能です'}
           </ThemedText>
           <TouchableOpacity
             style={[
               styles.toggleButton,
               {
                 backgroundColor: alwaysOnTop ? theme.tint : '#ddd',
+                opacity: windowManager.isDesktopPlatform() ? 1 : 0.5,
               },
             ]}
-            onPress={() => setAlwaysOnTop(!alwaysOnTop)}>
+            onPress={handleAlwaysOnTopToggle}
+            disabled={!windowManager.isDesktopPlatform()}>
             <ThemedText
               type="defaultSemiBold"
               style={[
