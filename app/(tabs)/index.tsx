@@ -1,98 +1,264 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { RecordingService } from '@/services/recording';
+import { OpenAIService } from '@/services/openai';
+import { storage } from '@/utils/storage';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const colorScheme = useColorScheme();
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [originalText, setOriginalText] = useState('');
+  const [correctedText, setCorrectedText] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [language, setLanguage] = useState('ja');
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const recordingService = React.useRef(new RecordingService()).current;
+
+  // 画面がフォーカスされたときに設定を再読み込み
+  useFocusEffect(
+    React.useCallback(() => {
+      loadSettings();
+    }, [])
+  );
+
+  const loadSettings = async () => {
+    try {
+      const settings = await storage.getAllSettings();
+      setApiKey(settings.apiKey);
+      setLanguage(settings.language);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  };
+
+  const handleToggleRecording = async () => {
+    if (isProcessing) {
+      return;
+    }
+
+    if (isRecording) {
+      // 録音を停止
+      await stopRecording();
+    } else {
+      // 録音を開始
+      await startRecording();
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      await recordingService.startRecording();
+      setIsRecording(true);
+      setOriginalText('');
+      setCorrectedText('');
+    } catch (error: any) {
+      Alert.alert('エラー', error.message || '録音の開始に失敗しました');
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      setIsRecording(false);
+      setIsProcessing(true);
+
+      // 録音を停止してファイルURIを取得
+      const audioUri = await recordingService.stopRecording();
+
+      if (!apiKey) {
+        Alert.alert('エラー', 'APIキーが設定されていません。設定画面でAPIキーを入力してください。');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Whisper APIで文字起こし
+      const openAIService = new OpenAIService(apiKey);
+      const transcribedText = await openAIService.transcribeAudio(audioUri, language);
+      setOriginalText(transcribedText);
+
+      // GPT APIで文章修正
+      const corrected = await openAIService.correctText(transcribedText);
+      setCorrectedText(corrected);
+
+      // クリップボードに自動コピー
+      Clipboard.setString(corrected);
+      Alert.alert('完了', '修正済みテキストをクリップボードにコピーしました');
+
+      // 一時ファイルをクリーンアップ
+      await recordingService.cleanup();
+      setIsProcessing(false);
+    } catch (error: any) {
+      console.error('Recording error:', error);
+      Alert.alert('エラー', error.message || '処理中にエラーが発生しました');
+      setIsProcessing(false);
+      await recordingService.cleanup();
+    }
+  };
+
+  const handleCopyToClipboard = () => {
+    if (correctedText) {
+      Clipboard.setString(correctedText);
+      Alert.alert('コピー完了', 'クリップボードにコピーしました');
+    }
+  };
+
+  const theme = Colors[colorScheme ?? 'light'];
+
+  return (
+    <ThemedView style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <ThemedView style={styles.header}>
+          <ThemedText type="title" style={styles.title}>
+            音声入力アプリ
+          </ThemedText>
+          {!apiKey && (
+            <ThemedText type="default" style={styles.warning}>
+              ⚠️ APIキーが設定されていません
+            </ThemedText>
+          )}
+        </ThemedView>
+
+        <ThemedView style={styles.recordingSection}>
+          <TouchableOpacity
+            style={[
+              styles.recordButton,
+              {
+                backgroundColor: isRecording ? '#ff4444' : theme.tint,
+                opacity: isProcessing ? 0.5 : 1,
+              },
+            ]}
+            onPress={handleToggleRecording}
+            disabled={isProcessing}>
+            {isProcessing ? (
+              <ActivityIndicator size="large" color="#fff" />
+            ) : (
+              <IconSymbol
+                name={isRecording ? 'mic.fill' : 'mic'}
+                size={48}
+                color="#fff"
+              />
+            )}
+          </TouchableOpacity>
+          <ThemedText type="default" style={styles.recordButtonLabel}>
+            {isRecording
+              ? '録音中... タップして停止'
+              : isProcessing
+              ? '処理中...'
+              : 'タップして録音開始'}
+          </ThemedText>
+        </ThemedView>
+
+        <ThemedView style={styles.textSection}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            修正前テキスト
+          </ThemedText>
+          <ThemedView style={styles.textBox}>
+            <ThemedText type="default" style={styles.textContent}>
+              {originalText || '録音して文字起こしすると、ここに表示されます'}
+            </ThemedText>
+          </ThemedView>
+        </ThemedView>
+
+        <ThemedView style={styles.textSection}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            最終結果
+          </ThemedText>
+          <ThemedView style={styles.textBox}>
+            <ThemedText type="default" style={styles.textContent}>
+              {correctedText || '修正済みテキストがここに表示されます'}
+            </ThemedText>
+          </ThemedView>
+          {correctedText && (
+            <TouchableOpacity
+              style={[styles.copyButton, { backgroundColor: theme.tint }]}
+              onPress={handleCopyToClipboard}>
+              <IconSymbol name="doc.on.clipboard" size={20} color="#fff" />
+              <ThemedText type="defaultSemiBold" style={styles.copyButtonText}>
+                クリップボードにコピー
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+        </ThemedView>
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  header: {
+    marginBottom: 30,
+    alignItems: 'center',
+  },
+  title: {
+    marginBottom: 10,
+  },
+  warning: {
+    color: '#ff8800',
+    marginTop: 10,
+  },
+  recordingSection: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  recordButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  recordButtonLabel: {
+    textAlign: 'center',
+  },
+  textSection: {
+    marginBottom: 30,
+  },
+  sectionTitle: {
+    marginBottom: 10,
+  },
+  textBox: {
+    minHeight: 120,
+    padding: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  textContent: {
+    lineHeight: 24,
+  },
+  copyButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  copyButtonText: {
+    color: '#fff',
   },
 });
