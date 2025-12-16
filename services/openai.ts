@@ -1,4 +1,3 @@
-import * as FileSystem from 'expo-file-system';
 
 const OPENAI_API_BASE = 'https://api.openai.com/v1';
 
@@ -30,14 +29,25 @@ export class OpenAIService {
     }
 
     try {
-      // FormDataを作成（multipart/form-data）
-      // React Nativeでは、uri形式でファイルを指定
+      // Webブラウザとネイティブアプリで処理を分ける
+      const isWeb = typeof window !== 'undefined' && audioUri.startsWith('blob:');
+      
       const formData = new FormData();
-      formData.append('file', {
-        uri: audioUri,
-        type: 'audio/m4a',
-        name: 'audio.m4a',
-      } as any);
+      
+      if (isWeb) {
+        // Webブラウザの場合: blob URIからBlobを取得
+        const response = await fetch(audioUri);
+        const blob = await response.blob();
+        formData.append('file', blob, 'audio.m4a');
+      } else {
+        // React Nativeの場合: uri形式でファイルを指定
+        formData.append('file', {
+          uri: audioUri,
+          type: 'audio/m4a',
+          name: 'audio.m4a',
+        } as any);
+      }
+      
       formData.append('model', 'whisper-1');
       formData.append('language', language);
 
@@ -51,7 +61,14 @@ export class OpenAIService {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+        const errorText = await response.text();
+        console.error('APIエラーレスポンス:', errorText);
+        let error;
+        try {
+          error = JSON.parse(errorText);
+        } catch {
+          error = { error: { message: `Unknown error: ${response.status}` } };
+        }
         throw new Error(error.error?.message || `API error: ${response.status}`);
       }
 

@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
-import Clipboard from '@react-native-clipboard/clipboard';
-import { RecordingService } from '@/services/recording';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { OpenAIService } from '@/services/openai';
+import { RecordingService } from '@/services/recording';
 import { storage } from '@/utils/storage';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { useFocusEffect } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -60,6 +60,7 @@ export default function HomeScreen() {
       setOriginalText('');
       setCorrectedText('');
     } catch (error: any) {
+      console.error('録音開始エラー:', error);
       Alert.alert('エラー', error.message || '録音の開始に失敗しました');
     }
   };
@@ -73,6 +74,7 @@ export default function HomeScreen() {
       const audioUri = await recordingService.stopRecording();
 
       if (!apiKey) {
+        console.error('APIキーが設定されていません');
         Alert.alert('エラー', 'APIキーが設定されていません。設定画面でAPIキーを入力してください。');
         setIsProcessing(false);
         return;
@@ -88,8 +90,13 @@ export default function HomeScreen() {
       setCorrectedText(corrected);
 
       // クリップボードに自動コピー
-      Clipboard.setString(corrected);
-      Alert.alert('完了', '修正済みテキストをクリップボードにコピーしました');
+      try {
+        await Clipboard.setString(corrected);
+        Alert.alert('完了', '修正済みテキストをクリップボードにコピーしました');
+      } catch (clipboardError) {
+        console.warn('クリップボードコピー失敗:', clipboardError);
+        Alert.alert('完了', '文章の修正が完了しました（クリップボードへのコピーに失敗しました）');
+      }
 
       // 一時ファイルをクリーンアップ
       await recordingService.cleanup();
@@ -180,7 +187,9 @@ export default function HomeScreen() {
               style={[styles.copyButton, { backgroundColor: theme.tint }]}
               onPress={handleCopyToClipboard}>
               <IconSymbol name="doc.on.clipboard" size={20} color="#fff" />
-              <ThemedText type="defaultSemiBold" style={styles.copyButtonText}>
+              <ThemedText
+                type="defaultSemiBold"
+                style={[styles.copyButtonText, { color: '#fff' }]}>
                 クリップボードにコピー
               </ThemedText>
             </TouchableOpacity>
@@ -259,6 +268,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   copyButtonText: {
-    color: '#fff',
+    // 色はインラインスタイルで動的に設定
   },
 });

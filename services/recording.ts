@@ -75,22 +75,35 @@ export class RecordingService {
         throw new Error('録音ファイルのURIを取得できませんでした');
       }
 
-      // 元のURIをそのまま使用（expo-avは既にM4A形式で保存している）
-      // 必要に応じて一時ディレクトリにコピー
-      const fileName = `recording_${Date.now()}.m4a`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      // Webブラウザの場合は、blob URIをそのまま使用
+      // ネイティブアプリの場合は、一時ディレクトリにコピー
+      const isWeb = typeof window !== 'undefined' && uri.startsWith('blob:');
       
-      try {
-        // ファイルをコピー（一時ファイルとして管理）
-        await FileSystem.copyAsync({
-          from: uri,
-          to: fileUri,
-        });
-        this.audioUri = fileUri;
-      } catch (error) {
-        // コピーに失敗した場合は元のURIを使用
-        console.warn('Failed to copy file, using original URI:', error);
+      if (isWeb) {
+        // Webブラウザではblob URIをそのまま使用
         this.audioUri = uri;
+      } else {
+        // ネイティブアプリでは一時ディレクトリにコピー
+        const fileName = `recording_${Date.now()}.m4a`;
+        const documentDir = (FileSystem as any).documentDirectory;
+        const fileUri = documentDir ? `${documentDir}${fileName}` : uri;
+        
+        if (documentDir && fileUri !== uri) {
+          try {
+            await FileSystem.copyAsync({
+              from: uri,
+              to: fileUri,
+            });
+            this.audioUri = fileUri;
+          } catch (error) {
+            // コピーに失敗した場合は元のURIを使用
+            console.warn('Failed to copy file, using original URI:', error);
+            this.audioUri = uri;
+          }
+        } else {
+          // documentDirectoryが利用できない場合は元のURIを使用
+          this.audioUri = uri;
+        }
       }
 
       this.recording = null;
